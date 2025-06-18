@@ -155,27 +155,24 @@ try:
         
         # Add markers for each location
         for idx, row in df_filtered.drop_duplicates(subset=['MUKIM', 'LATITUDE', 'LONGITUDE']).iterrows():
-            # Calculate total people affected at this location
             location_total = df_filtered[
                 (df_filtered['LATITUDE'] == row['LATITUDE']) & 
                 (df_filtered['LONGITUDE'] == row['LONGITUDE'])
             ]['JUMLAH'].sum()
-            
-            # Create popup content
             popup_content = f"""
                 <b>Location:</b> {row['MUKIM']}<br>
                 <b>District:</b> {row['DAERAH']}<br>
+                <b>Category:</b> {row['KATEGORI']}<br>
                 <b>Total Affected:</b> {location_total:,} people
             """
-            
-            # Add marker with popup
             folium.CircleMarker(
                 location=[row['LATITUDE'], row['LONGITUDE']],
-                radius=10,
+                radius=5 + location_total / 20,  # marker size based on affected people
                 popup=folium.Popup(popup_content, max_width=300),
                 color='red',
                 fill=True,
-                fill_color='red'
+                fill_color='red',
+                fill_opacity=0.7
             ).add_to(m)
         
         # Display the map
