@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import folium
+from streamlit_folium import folium_static
 
 # Set page config
 st.set_page_config(
@@ -59,6 +61,10 @@ st.markdown("""
 @st.cache_data
 def load_data():
     df = pd.read_excel('DATA BANJIR.xlsx')
+    # Extract latitude and longitude from KOORDINAT column
+    df[['LATITUDE', 'LONGITUDE']] = df['KOORDINAT'].str.extract(r'(\d+\.\d+)°\s*[NS],\s*(\d+\.\d+)°\s*[EW]')
+    df['LATITUDE'] = pd.to_numeric(df['LATITUDE'])
+    df['LONGITUDE'] = pd.to_numeric(df['LONGITUDE'])
     return df
 
 try:
@@ -115,7 +121,7 @@ try:
         total_categories = len(df_filtered['KATEGORI'].unique())
         st.metric("Total Categories", total_categories)
 
-    # Create two columns for charts
+    # Create three columns for charts and map
     col1, col2 = st.columns(2)
     
     with col1:
@@ -138,18 +144,47 @@ try:
         st.plotly_chart(fig_category, use_container_width=True)
 
     with col2:
-        # Distribution by Location
-        location_data = df_filtered.groupby('MUKIM')['JUMLAH'].sum().reset_index()
-        fig_location = px.pie(
-            location_data,
-            values='JUMLAH',
-            names='MUKIM',
-            title='Distribution by Location'
+        # Interactive Map
+        st.subheader("Flood Location Map")
+        
+        # Create a base map centered on the mean coordinates
+        m = folium.Map(
+            location=[df_filtered['LATITUDE'].mean(), df_filtered['LONGITUDE'].mean()],
+            zoom_start=12
         )
-        fig_location.update_layout(plot_bgcolor='white')
-        st.plotly_chart(fig_location, use_container_width=True)
+        
+        # Add markers for each location
+        for idx, row in df_filtered.drop_duplicates(subset=['MUKIM', 'LATITUDE', 'LONGITUDE']).iterrows():
+            # Calculate total people affected at this location
+            location_total = df_filtered[
+                (df_filtered['LATITUDE'] == row['LATITUDE']) & 
+                (df_filtered['LONGITUDE'] == row['LONGITUDE'])
+            ]['JUMLAH'].sum()
+            
+            # Create popup content
+            popup_content = f"""
+                <b>Location:</b> {row['MUKIM']}<br>
+                <b>District:</b> {row['DAERAH']}<br>
+                <b>Total Affected:</b> {location_total:,} people
+            """
+            
+            # Add marker with popup
+            folium.CircleMarker(
+                location=[row['LATITUDE'], row['LONGITUDE']],
+                radius=10,
+                popup=folium.Popup(popup_content, max_width=300),
+                color='red',
+                fill=True,
+                fill_color='red'
+            ).add_to(m)
+        
+        # Display the map
+        folium_static(m)
 
-    # Full width chart
+    # Full width charts
+    st.subheader("Detailed Analysis")
+    
+    # Heat Map
     location_category_data = df_filtered.groupby(['MUKIM', 'KATEGORI'])['JUMLAH'].sum().reset_index()
     fig_heatmap = px.density_heatmap(
         location_category_data,
@@ -166,7 +201,7 @@ try:
     )
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-    # Add a treemap visualization
+    # Treemap visualization
     fig_treemap = px.treemap(
         df_filtered,
         path=['NEGERI', 'DAERAH', 'MUKIM', 'KATEGORI'],
