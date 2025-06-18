@@ -54,6 +54,13 @@ st.markdown("""
         color: rgb(49, 51, 63);
         overflow-wrap: break-word;
     }
+    .section-title-black {
+        color: #111;
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.7rem;
+        margin-top: 1.5rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -121,17 +128,15 @@ try:
         total_categories = len(df_filtered['KATEGORI'].unique())
         st.metric("Total Categories", total_categories)
 
-    # Center the map using columns
-    st.subheader("Flood Location Map")
+    # Center the map using columns and set the section title to black
+    st.markdown('<div class="section-title-black">Flood Location Map</div>', unsafe_allow_html=True)
     map_col1, map_col2, map_col3 = st.columns([1,2,1])
     with map_col2:
-        # Create a base map centered on the mean coordinates with dark tiles
         m = folium.Map(
             location=[df_filtered['LATITUDE'].mean(), df_filtered['LONGITUDE'].mean()],
             zoom_start=12,
             tiles='CartoDB dark_matter'
         )
-        # Add markers for each location
         for idx, row in df_filtered.drop_duplicates(subset=['MUKIM', 'LATITUDE', 'LONGITUDE']).iterrows():
             location_total = df_filtered[
                 (df_filtered['LATITUDE'] == row['LATITUDE']) & 
