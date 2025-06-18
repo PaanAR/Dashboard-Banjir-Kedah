@@ -121,38 +121,16 @@ try:
         total_categories = len(df_filtered['KATEGORI'].unique())
         st.metric("Total Categories", total_categories)
 
-    # Create three columns for charts and map
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        # Distribution by Category and Gender
-        category_gender_data = df_filtered.groupby(['KATEGORI', 'JANTINA'])['JUMLAH'].sum().reset_index()
-        fig_category = px.bar(
-            category_gender_data,
-            x='KATEGORI',
-            y='JUMLAH',
-            color='JANTINA',
-            title='Distribution by Category and Gender',
-            barmode='group'
-        )
-        fig_category.update_layout(
-            xaxis_title="Category",
-            yaxis_title="Number of People",
-            legend_title="Gender",
-            plot_bgcolor='white'
-        )
-        st.plotly_chart(fig_category, use_container_width=True)
-
-    with col2:
-        # Interactive Map
-        st.subheader("Flood Location Map")
-        
-        # Create a base map centered on the mean coordinates
+    # Center the map using columns
+    st.subheader("Flood Location Map")
+    map_col1, map_col2, map_col3 = st.columns([1,2,1])
+    with map_col2:
+        # Create a base map centered on the mean coordinates with dark tiles
         m = folium.Map(
             location=[df_filtered['LATITUDE'].mean(), df_filtered['LONGITUDE'].mean()],
-            zoom_start=12
+            zoom_start=12,
+            tiles='CartoDB dark_matter'
         )
-        
         # Add markers for each location
         for idx, row in df_filtered.drop_duplicates(subset=['MUKIM', 'LATITUDE', 'LONGITUDE']).iterrows():
             location_total = df_filtered[
@@ -162,25 +140,21 @@ try:
             popup_content = f"""
                 <b>Location:</b> {row['MUKIM']}<br>
                 <b>District:</b> {row['DAERAH']}<br>
-                <b>Category:</b> {row['KATEGORI']}<br>
                 <b>Total Affected:</b> {location_total:,} people
             """
             folium.CircleMarker(
                 location=[row['LATITUDE'], row['LONGITUDE']],
-                radius=5 + location_total / 20,  # marker size based on affected people
+                radius=10,
                 popup=folium.Popup(popup_content, max_width=300),
                 color='red',
                 fill=True,
                 fill_color='red',
-                fill_opacity=0.7
+                fill_opacity=0.8
             ).add_to(m)
-        
-        # Display the map
         folium_static(m)
 
     # Full width charts
     st.subheader("Detailed Analysis")
-    
     # Heat Map
     location_category_data = df_filtered.groupby(['MUKIM', 'KATEGORI'])['JUMLAH'].sum().reset_index()
     fig_heatmap = px.density_heatmap(
